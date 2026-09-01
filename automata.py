@@ -1,22 +1,4 @@
 class AutomataAFD:
-    """
-    AFD formal del proceso de compra de PriceSmart.
-
-    M = (Q, Σ, δ, q0, F)
-
-    Q = {q0, q1, q2, q3, q4, q5, q6}
-
-    Σ = {VM, RP, FR, PG, AP, FC}
-
-    q0 = q0
-
-    F = {q6}
-
-    Las combinaciones no contempladas como transición válida conservan
-    el mismo estado y se reportan como intento no válido, tal como exige
-    el proyecto.
-    """
-
     ESTADOS = {
         "q0": "Inicio",
         "q1": "Membresía validada",

@@ -1,7 +1,6 @@
 import re
 import requests
 
-
 class SistemaCompra:
     """Datos y validaciones del módulo de compra extraídos del prototipo original."""
 

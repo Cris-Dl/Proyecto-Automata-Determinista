@@ -4,21 +4,7 @@ import flet as ft
 
 
 def construir_interfaz(page: ft.Page, automata, sistema):
-    """
-    FASE 9 - PULIDO UX / SCROLL / FILTROS / CHECKOUT
-
-    Esta versión modifica SOLAMENTE ui.py.
-
-    En esta fase:
-    - main.py NO cambia.
-    - sistema.py NO cambia.
-    - automata.py SÍ se corrige formalmente.
-    - La UI se adapta únicamente para reflejar el nuevo AFD.
-    """
-
-    # ================================================================
     # 1. TOKENS VISUALES
-    # ================================================================
     AZUL_950 = "#072B61"
     AZUL_900 = "#0A3D82"
     AZUL_800 = "#0D4EA5"
@@ -62,9 +48,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.bgcolor = FONDO
 
-    # ================================================================
     # 2. COMPATIBILIDAD / VENTANA / ANIMACIONES
-    # ================================================================
     def maximizar():
         # API reciente
         try:
@@ -106,7 +90,6 @@ def construir_interfaz(page: ft.Page, automata, sistema):
             return False
 
     def poner_cursor_click(control):
-        # Intenta varias APIs sin romper versiones distintas.
         try:
             control.mouse_cursor = ft.MouseCursor.CLICK
             return
@@ -169,8 +152,6 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         return False
 
     def abrir_dialogo(dialogo):
-        # En la versión de Flet usada por el proyecto, page.open/page.close
-        # resulta más consistente para diálogos superpuestos.
         try:
             page.open(dialogo)
             return
@@ -216,9 +197,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         except Exception:
             pass
 
-    # ================================================================
     # 3. HELPERS DEL AFD
-    # ================================================================
     def codigo_estado(estado_completo):
         return estado_completo.split(":", 1)[0].strip()
 
@@ -276,9 +255,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
             ),
         )
 
-    # ================================================================
     # 4. ESTADO VISUAL GENERAL
-    # ================================================================
     txt_total = ft.Text(
         "Q0.00",
         size=22,
@@ -319,9 +296,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         color="#C8D8EB",
     )
 
-    # ================================================================
     # 5. HISTORIAL - RECONSTRUIDO PARA EVITAR EL PANEL VACÍO
-    # ================================================================
     historial_paso = 0
     txt_cantidad_historial = ft.Text(
         "1 registro",
@@ -554,9 +529,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
 
     cargar_estado_inicial_historial()
 
-    # ================================================================
     # 6. AFD VISUAL COMPACTO - TODO VISIBLE SIN SCROLL HORIZONTAL
-    # ================================================================
     nodo_refs = []
     conector_refs = {}
 
@@ -888,11 +861,6 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         page.update()
 
     def ejecutar_evento_ui(simbolo, descripcion=None, mostrar_error=True):
-        """
-        La UI envía únicamente el símbolo.
-
-        automata.py resuelve δ(estado, símbolo) y devuelve el resultado.
-        """
         resultado = automata.ejecutar_evento(
             simbolo,
             descripcion,
@@ -926,9 +894,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
 
         return resultado
 
-    # ================================================================
     # 7. MEMBRESÍA
-    # ================================================================
     campo_membresia = ft.TextField(
         label="Código de membresía",
         hint_text="PSABC123",
@@ -1023,12 +989,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         error_membresia.value = ""
         abrir_dialogo(dialogo_membresia)
 
-    # ================================================================
     # 8. CARRITO
-    # ================================================================
-    # El carrito usa un overlay propio en lugar de AlertDialog.
-    # Esto evita problemas de cierre/reapertura de AlertDialog en algunas
-    # versiones de Flet.
     carrito_titulo = ft.Row(spacing=8)
     carrito_cuerpo = ft.Column(spacing=10, tight=True)
     carrito_acciones = ft.Row(
@@ -1312,9 +1273,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         carrito_overlay.visible = True
         page.update()
 
-    # ================================================================
     # 9. PRODUCTOS / FEEDBACK DE CLIC REAL
-    # ================================================================
     async def restaurar_feedback(
         card,
         boton_agregar,
@@ -1486,9 +1445,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         except Exception:
             pass
 
-    # ================================================================
     # 10. PAGO
-    # ================================================================
     campo_nombre = ft.TextField(
         label="Nombre completo",
         width=330,
@@ -1878,9 +1835,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
             "Realizar Pago (p)",
         )
 
-    # ================================================================
     # 11. FINALIZAR / REINICIAR
-    # ================================================================
     def btn_finalizar_registro(_):
         if automata.estado_actual_idx == 2:
             abrir_carrito()
@@ -1908,23 +1863,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         cargar_estado_inicial_historial()
         actualizar_interfaz_afd()
 
-    # ================================================================
-    # ================================================================
-    # 12. FLUJO NATURAL DE LA TIENDA
-    # ================================================================
-    # Los eventos ya no se presentan como botones académicos:
-    #
-    # VM -> icono de usuario / membresía
-    # RP -> botón Agregar de cada producto
-    # FR -> carrito / Finalizar selección
-    # PG -> carrito / Proceder al pago
-    # AP -> aprobación simulada del pago
-    # FC -> pantalla Pago aprobado / Finalizar compra
-    #
-    # El AFD y el historial siguen mostrando cada evento en tiempo real.
-
     # 13. CATÁLOGO
-    # ================================================================
     columna_catalogo = ft.Column(
         spacing=28,
         scroll=ft.ScrollMode.AUTO,
@@ -2296,9 +2235,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
     except Exception:
         pass
 
-    # ================================================================
     # 14. HEADER
-    # ================================================================
     def hover_icono(e, control, color_hover=None, color_normal=None):
         try:
             entrando = str(e.data).lower() == "true"
@@ -2579,9 +2516,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         **header_kwargs
     )
 
-    # ================================================================
     # 15. PANEL CATÁLOGO
-    # ================================================================
     cabecera_catalogo = ft.ResponsiveRow(
         [
             ft.Container(
@@ -2650,9 +2585,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         ),
     )
 
-    # ================================================================
     # 16. PANEL AFD
-    # ================================================================
     tarjeta_estado = ft.Container(
         border_radius=16,
         padding=14,
@@ -2746,9 +2679,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         ),
     )
 
-    # ================================================================
     # 17. HISTORIAL
-    # ================================================================
     historial_card = ft.Container(
         bgcolor=SUPERFICIE,
         border_radius=20,
@@ -2813,9 +2744,7 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         ),
     )
 
-    # ================================================================
     # 18. LAYOUT FINAL
-    # ================================================================
     contenido = ft.ResponsiveRow(
         [
             panel_catalogo,
