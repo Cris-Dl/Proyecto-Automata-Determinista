@@ -1,53 +1,65 @@
+import asyncio
 import flet as ft
 
 
 def construir_interfaz(page: ft.Page, automata, sistema):
     """
-    ETAPA 2 - UI RESPONSIVE + SISTEMA VISUAL
-    ----------------------------------------
-    Esta etapa modifica SOLAMENTE la interfaz.
+    ETAPA 4 - UI MODERNA / TIENDA + AFD VISUAL
+    --------------------------------------------
+    Esta versión modifica SOLAMENTE ui.py.
 
-    Mantiene intactos:
+    NO cambia:
     - automata.py
     - sistema.py
-    - flujo y validaciones del prototipo actual
+    - main.py
+    - estados ni flujo del prototipo actual
 
-    Cambios visuales:
-    - Layout responsive real, sin GridView con alturas rígidas.
-    - Tarjetas de producto responsive: 1 / 2 / 3 / 4 columnas.
-    - Más aire, separación y jerarquía visual.
-    - Paleta moderna azul / rojo con fondos suaves.
-    - Gradientes y glows/blurs decorativos compatibles cuando Flet lo permite.
-    - Historial responsive en tarjetas: conserva Paso, Estado, Símbolo,
-      Transición, Nuevo estado y Explicación sin una tabla rígida.
-    - AFD compacto y siempre presente en el panel derecho en escritorio.
+    Objetivos de esta etapa:
+    - Dar más aire visual a toda la aplicación.
+    - Mejorar el responsive interno, no solo el layout exterior.
+    - Convertir el encabezado en una barra de tienda online.
+    - Agregar búsqueda visual y contador de carrito.
+    - Mejorar hover y feedback de "Agregar".
+    - Rediseñar el AFD como diagrama real, no como una fila de botones.
+    - Mantener el historial como elemento académico principal.
+    - Modernizar modales y pantalla de confirmación.
     """
 
-    # ======================================================================
-    # 1. PALETA Y CONFIGURACIÓN GENERAL
-    # ======================================================================
-    AZUL_950 = "#082A5E"
-    AZUL_900 = "#0B3F86"
-    AZUL_800 = "#0E4DA4"
-    AZUL_700 = "#1765C1"
-    AZUL_600 = "#2379D8"
+    # ==================================================================
+    # 1. TOKENS VISUALES
+    # ==================================================================
+    AZUL_950 = "#072B61"
+    AZUL_900 = "#0A3D82"
+    AZUL_800 = "#0D4EA5"
+    AZUL_700 = "#1668C7"
+    AZUL_600 = "#247FE0"
+    AZUL_200 = "#BCD7F8"
     AZUL_100 = "#DCEBFF"
-    AZUL_50 = "#EEF6FF"
+    AZUL_50 = "#F0F6FF"
 
+    ROJO_700 = "#D92C34"
     ROJO_600 = "#EF3E42"
-    ROJO_50 = "#FFF1F2"
+    ROJO_100 = "#FFD9DB"
+    ROJO_50 = "#FFF3F4"
 
-    VERDE_700 = "#16835A"
-    VERDE_50 = "#ECFDF5"
+    VERDE_700 = "#167A55"
+    VERDE_600 = "#1D9667"
+    VERDE_100 = "#CDEFE1"
+    VERDE_50 = "#EEFBF5"
 
-    NARANJA_700 = "#D97706"
-    NARANJA_50 = "#FFF7E8"
+    AMBAR_700 = "#B86108"
+    AMBAR_600 = "#D97706"
+    AMBAR_100 = "#FFE7B7"
+    AMBAR_50 = "#FFF8E9"
 
     TEXTO = "#172033"
-    TEXTO_SUAVE = "#66778B"
+    TEXTO_2 = "#435368"
+    TEXTO_SUAVE = "#738397"
     BORDE = "#E3EAF2"
+    BORDE_SUAVE = "#EDF1F6"
     SUPERFICIE = "#FFFFFF"
-    FONDO = "#F4F7FB"
+    SUPERFICIE_2 = "#F8FAFD"
+    FONDO = "#F2F6FB"
 
     page.title = "Simulador PriceSmart - AFD"
     page.padding = 0
@@ -59,65 +71,85 @@ def construir_interfaz(page: ft.Page, automata, sistema):
     productos = sistema.productos
     estados_afd = automata.estados_afd
 
-    # ======================================================================
-    # 2. COMPATIBILIDAD VISUAL
-    # ======================================================================
-    def crear_gradiente(colores, inicio=None, fin=None):
-        """Devuelve gradiente si la versión de Flet lo soporta; si no, None."""
+    # ==================================================================
+    # 2. HELPERS DE COMPATIBILIDAD / ANIMACIÓN
+    # ==================================================================
+    def animar(control, propiedad, duracion=180):
+        try:
+            setattr(
+                control,
+                propiedad,
+                ft.Animation(duracion, ft.AnimationCurve.EASE_OUT),
+            )
+            return True
+        except Exception:
+            return False
+
+    def sombra(blur=18, color="#DDE6F0", spread=0):
+        try:
+            return ft.BoxShadow(
+                blur_radius=blur,
+                spread_radius=spread,
+                color=color,
+            )
+        except Exception:
+            return ft.BoxShadow(blur_radius=blur, color=color)
+
+    def gradiente(colores, begin=None, end=None):
         clase = getattr(ft, "LinearGradient", None)
         if clase is None:
             return None
-
         try:
             return clase(
-                begin=inicio or ft.Alignment(-1, -1),
-                end=fin or ft.Alignment(1, 1),
+                begin=begin or ft.Alignment(-1, -1),
+                end=end or ft.Alignment(1, 1),
                 colors=colores,
             )
         except Exception:
             return None
 
-    def crear_blur(sigma=30):
-        """Intenta crear blur en distintas firmas de Flet, sin romper la app."""
+    def blur_seguro(sigma=35):
         clase = getattr(ft, "Blur", None)
         if clase is None:
             return None
-
-        intentos = [
+        for creador in (
             lambda: clase(sigma_x=sigma, sigma_y=sigma),
             lambda: clase(sigma, sigma),
-        ]
-
-        for intento in intentos:
+        ):
             try:
-                return intento()
+                return creador()
             except Exception:
                 pass
-
         return None
 
-    def crear_blob(color, ancho, alto, izquierda=None, derecha=None, arriba=None, abajo=None):
-        kwargs = {
-            "width": ancho,
-            "height": alto,
-            "border_radius": 999,
-            "bgcolor": color,
-            "opacity": 0.65,
-            "left": izquierda,
-            "right": derecha,
-            "top": arriba,
-            "bottom": abajo,
-        }
-
-        blur = crear_blur(45)
-        if blur is not None:
-            kwargs["blur"] = blur
-
+    def blob(color, size, left=None, right=None, top=None, bottom=None, opacity=0.55):
+        kwargs = dict(
+            width=size,
+            height=size,
+            bgcolor=color,
+            border_radius=999,
+            opacity=opacity,
+            left=left,
+            right=right,
+            top=top,
+            bottom=bottom,
+        )
+        b = blur_seguro(48)
+        if b is not None:
+            kwargs["blur"] = b
         return ft.Container(**kwargs)
 
-    # ======================================================================
-    # 3. HELPERS GENERALES
-    # ======================================================================
+    def lanzar_tarea(funcion, *args):
+        """Ejecuta microanimación si la versión de Flet ofrece page.run_task."""
+        try:
+            if hasattr(page, "run_task"):
+                page.run_task(funcion, *args)
+        except Exception:
+            pass
+
+    # ==================================================================
+    # 3. HELPERS DE TEXTO / AFD
+    # ==================================================================
     def codigo_estado(estado_completo):
         return estado_completo.split(":", 1)[0].strip()
 
@@ -126,29 +158,29 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         return partes[1].strip() if len(partes) == 2 else estado_completo
 
     def simbolo_de_evento(evento):
-        evento_lower = evento.lower()
-        if "validar membresía" in evento_lower:
+        e = evento.lower()
+        if "validar membresía" in e:
             return "VM"
-        if "registrar producto" in evento_lower:
+        if "registrar producto" in e:
             return "RP"
-        if "finalizar registro" in evento_lower:
+        if "finalizar registro" in e:
             return "FR"
-        if "realizar pago" in evento_lower:
+        if "realizar pago" in e:
             return "PG"
-        if "aprobar pago" in evento_lower:
+        if "aprobar pago" in e:
             return "AP"
         return "—"
 
     def explicacion_evento(simbolo, valido=True):
-        explicaciones = {
-            "VM": "Validación de membresía",
-            "RP": "Registro de producto",
-            "FR": "Finalización del registro",
-            "PG": "Realización del pago",
-            "AP": "Aprobación del pago",
+        textos = {
+            "VM": "Se valida la membresía del cliente.",
+            "RP": "Se registra un producto en la compra.",
+            "FR": "Se cierra el registro de productos.",
+            "PG": "Se procesa la información de pago.",
+            "AP": "El pago es aprobado y finaliza la compra.",
         }
-        base = explicaciones.get(simbolo, "Evento del sistema")
-        return base if valido else f"{base}: transición no válida"
+        base = textos.get(simbolo, "Evento del sistema.")
+        return base if valido else f"{base} El AFD conserva el estado actual."
 
     def mostrar_alerta(mensaje, color_fondo=ROJO_600):
         page.snack_bar = ft.SnackBar(
@@ -158,83 +190,42 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         page.snack_bar.open = True
         page.update()
 
-    def crear_boton(
-        texto,
-        color_fondo,
-        icono=None,
-        accion=None,
-        data=None,
-        ancho=None,
-    ):
-        boton = ft.Button(
+    def chip(texto, fg=AZUL_800, bg=AZUL_50, icono=None):
+        controles = []
+        if icono is not None:
+            controles.append(ft.Icon(icono, size=12, color=fg))
+        controles.append(
+            ft.Text(texto, size=9, weight=ft.FontWeight.BOLD, color=fg)
+        )
+        return ft.Container(
+            bgcolor=bg,
+            border_radius=999,
+            padding=ft.Padding(left=9, top=5, right=9, bottom=5),
+            content=ft.Row(controles, spacing=5, tight=True),
+        )
+
+    def boton(texto, color, accion, icono=None, data=None, width=None):
+        b = ft.Button(
             texto,
             icon=icono,
             on_click=accion,
             data=data,
-            width=ancho,
+            width=width,
             style=ft.ButtonStyle(
                 color=ft.Colors.WHITE,
-                bgcolor=color_fondo,
+                bgcolor=color,
                 shape=ft.RoundedRectangleBorder(radius=12),
-                padding=ft.Padding(left=18, top=13, right=18, bottom=13),
+                padding=ft.Padding(left=16, top=12, right=16, bottom=12),
             ),
         )
-        return boton
+        return b
 
-    def etiqueta(texto, color_texto, color_fondo):
-        return ft.Container(
-            bgcolor=color_fondo,
-            border_radius=999,
-            padding=ft.Padding(left=9, top=4, right=9, bottom=4),
-            content=ft.Text(
-                texto,
-                size=10,
-                weight=ft.FontWeight.BOLD,
-                color=color_texto,
-            ),
-        )
-
-    def campo_historial(titulo, valor, col, color_valor=TEXTO, negrita=False):
-        return ft.Container(
-            col=col,
-            padding=ft.Padding(left=4, top=4, right=4, bottom=4),
-            content=ft.Column(
-                [
-                    ft.Text(
-                        titulo.upper(),
-                        size=9,
-                        weight=ft.FontWeight.BOLD,
-                        color=TEXTO_SUAVE,
-                    ),
-                    ft.Text(
-                        str(valor),
-                        size=12,
-                        weight=ft.FontWeight.BOLD if negrita else ft.FontWeight.NORMAL,
-                        color=color_valor,
-                        max_lines=3,
-                    ),
-                ],
-                spacing=3,
-                tight=True,
-            ),
-        )
-
-    # ======================================================================
-    # 4. ESTADO VISUAL GENERAL
-    # ======================================================================
-    txt_total = ft.Text(
-        "Q0.00",
-        size=24,
-        weight=ft.FontWeight.BOLD,
-        color=AZUL_950,
-    )
-
-    txt_estado_actual = ft.Text(
-        nombre_estado(estados_afd[automata.estado_actual_idx]),
-        size=18,
-        weight=ft.FontWeight.BOLD,
-        color=AZUL_950,
-    )
+    # ==================================================================
+    # 4. ESTADO VISUAL COMPARTIDO
+    # ==================================================================
+    txt_total = ft.Text("Q0.00", size=22, weight=ft.FontWeight.BOLD, color=AZUL_950)
+    txt_carrito = ft.Text("0", size=10, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
+    txt_membresia = ft.Text("Sin validar", size=10, color=TEXTO_SUAVE)
 
     txt_codigo_estado = ft.Text(
         codigo_estado(estados_afd[automata.estado_actual_idx]),
@@ -242,33 +233,25 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         weight=ft.FontWeight.BOLD,
         color=ft.Colors.WHITE,
     )
-
-    badge_estado = ft.Container(
-        content=txt_codigo_estado,
-        bgcolor=AZUL_700,
-        padding=ft.Padding(left=12, top=7, right=12, bottom=7),
-        border_radius=999,
+    txt_estado_actual = ft.Text(
+        nombre_estado(estados_afd[automata.estado_actual_idx]),
+        size=18,
+        weight=ft.FontWeight.BOLD,
+        color=AZUL_950,
     )
-
-    txt_ultimo_evento = ft.Text(
-        "Sin eventos todavía",
+    txt_formula = ft.Text(
+        "Aún no se ha ejecutado ningún evento.",
         size=11,
         color=TEXTO_SUAVE,
-        max_lines=2,
     )
 
-    # ======================================================================
+    # ==================================================================
     # 5. HISTORIAL RESPONSIVE
-    # ======================================================================
+    # ==================================================================
     historial_paso = 0
+    lista_historial = ft.ListView(spacing=9, auto_scroll=True, height=420)
 
-    lista_historial = ft.ListView(
-        spacing=10,
-        auto_scroll=True,
-        height=430,
-    )
-
-    def crear_fila_historial(
+    def crear_item_historial(
         paso,
         estado_actual,
         simbolo,
@@ -279,98 +262,61 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         inicial=False,
     ):
         if inicial:
-            fondo = "#F8FBFF"
-            barra = AZUL_600
-            estado_color = AZUL_900
-            estado_txt = "INICIAL"
-            chip = etiqueta(estado_txt, AZUL_900, AZUL_100)
+            acento, fondo, estado_chip = AZUL_600, "#F8FBFF", chip("INICIAL", AZUL_800, AZUL_100)
         elif valida:
-            fondo = SUPERFICIE
-            barra = VERDE_700
-            estado_color = VERDE_700
-            estado_txt = "VÁLIDA"
-            chip = etiqueta(estado_txt, VERDE_700, VERDE_50)
+            acento, fondo, estado_chip = VERDE_600, SUPERFICIE, chip("VÁLIDA", VERDE_700, VERDE_50)
         else:
-            fondo = "#FFFBFB"
-            barra = ROJO_600
-            estado_color = ROJO_600
-            estado_txt = "NO VÁLIDA"
-            chip = etiqueta(estado_txt, ROJO_600, ROJO_50)
+            acento, fondo, estado_chip = ROJO_600, "#FFFBFB", chip("NO VÁLIDA", ROJO_700, ROJO_50)
+
+        def campo(titulo, valor, col, color=TEXTO):
+            return ft.Container(
+                col=col,
+                content=ft.Column(
+                    [
+                        ft.Text(titulo.upper(), size=8, weight=ft.FontWeight.BOLD, color=TEXTO_SUAVE),
+                        ft.Text(str(valor), size=11, weight=ft.FontWeight.BOLD, color=color, max_lines=3),
+                    ],
+                    spacing=2,
+                    tight=True,
+                ),
+            )
 
         contenido = ft.Container(
-            padding=ft.Padding(left=16, top=14, right=16, bottom=14),
+            expand=True,
+            padding=ft.Padding(left=14, top=12, right=14, bottom=12),
             content=ft.Column(
                 [
                     ft.Row(
                         [
-                            ft.Row(
-                                [
-                                    ft.Text(
-                                        f"Paso {paso}",
-                                        size=13,
-                                        weight=ft.FontWeight.BOLD,
-                                        color=AZUL_950,
-                                    ),
-                                    chip,
-                                ],
-                                spacing=8,
-                                wrap=True,
-                            ),
+                            ft.Text(f"Paso {paso}", size=12, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                            estado_chip,
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
                     ft.ResponsiveRow(
                         [
-                            campo_historial(
-                                "Estado actual",
-                                estado_actual,
-                                {"xs": 6, "sm": 4, "lg": 2},
-                                AZUL_900,
-                                True,
-                            ),
-                            campo_historial(
-                                "Símbolo leído",
-                                simbolo,
-                                {"xs": 6, "sm": 4, "lg": 2},
-                                AZUL_900,
-                                True,
-                            ),
-                            campo_historial(
-                                "Nuevo estado",
-                                nuevo_estado,
-                                {"xs": 6, "sm": 4, "lg": 2},
-                                estado_color,
-                                True,
-                            ),
-                            campo_historial(
-                                "Transición",
-                                transicion,
-                                {"xs": 12, "sm": 6, "lg": 3},
-                                TEXTO,
-                            ),
-                            campo_historial(
-                                "Explicación",
-                                explicacion,
-                                {"xs": 12, "sm": 6, "lg": 3},
-                                TEXTO_SUAVE,
-                            ),
+                            campo("Estado", estado_actual, {"xs": 6, "sm": 3, "lg": 2}, AZUL_900),
+                            campo("Símbolo", simbolo, {"xs": 6, "sm": 3, "lg": 2}, AZUL_900),
+                            campo("Nuevo", nuevo_estado, {"xs": 6, "sm": 3, "lg": 2}, VERDE_700 if valida else ROJO_700),
+                            campo("Transición", transicion, {"xs": 12, "sm": 6, "lg": 3}),
+                            campo("Explicación", explicacion, {"xs": 12, "sm": 6, "lg": 3}, TEXTO_2),
                         ],
-                        spacing=6,
-                        run_spacing=6,
+                        spacing=8,
+                        run_spacing=8,
                     ),
                 ],
-                spacing=10,
+                spacing=9,
             ),
         )
 
         return ft.Container(
             bgcolor=fondo,
             border_radius=14,
-            shadow=ft.BoxShadow(blur_radius=8, color="#E7EDF5"),
+            shadow=sombra(7, "#E7EDF4"),
             content=ft.Row(
                 [
-                    ft.Container(width=4, bgcolor=barra, border_radius=999),
-                    ft.Container(content=contenido, expand=True),
+                    ft.Container(width=4, bgcolor=acento, border_radius=999),
+                    contenido,
                 ],
                 spacing=0,
                 vertical_alignment=ft.CrossAxisAlignment.STRETCH,
@@ -382,192 +328,332 @@ def construir_interfaz(page: ft.Page, automata, sistema):
         historial_paso = 0
         lista_historial.controls.clear()
         lista_historial.controls.append(
-            crear_fila_historial(
-                paso=0,
-                estado_actual="q0",
-                simbolo="—",
-                transicion="—",
-                nuevo_estado="q0",
-                explicacion="Estado inicial",
-                inicial=True,
+            crear_item_historial(
+                0, "q0", "—", "—", "q0", "Estado inicial del autómata.", inicial=True
             )
         )
 
     def registrar_historial(evento, estado_anterior, estado_nuevo):
         nonlocal historial_paso
         historial_paso += 1
-
-        q_anterior = codigo_estado(estado_anterior)
-        q_nuevo = codigo_estado(estado_nuevo)
-        simbolo = simbolo_de_evento(evento)
-
+        q1 = codigo_estado(estado_anterior)
+        q2 = codigo_estado(estado_nuevo)
+        s = simbolo_de_evento(evento)
         lista_historial.controls.append(
-            crear_fila_historial(
-                paso=historial_paso,
-                estado_actual=q_anterior,
-                simbolo=simbolo,
-                transicion=f"δ({q_anterior}, {simbolo}) = {q_nuevo}",
-                nuevo_estado=q_nuevo,
-                explicacion=explicacion_evento(simbolo, valido=True),
+            crear_item_historial(
+                historial_paso,
+                q1,
+                s,
+                f"δ({q1}, {s}) = {q2}",
+                q2,
+                explicacion_evento(s, True),
                 valida=True,
             )
         )
 
-    def registrar_intento_invalido(simbolo, explicacion=None):
+    def registrar_invalida(simbolo, explicacion):
         nonlocal historial_paso
         historial_paso += 1
-
-        estado = estados_afd[automata.estado_actual_idx]
-        q_actual = codigo_estado(estado)
-
+        q = codigo_estado(estados_afd[automata.estado_actual_idx])
         lista_historial.controls.append(
-            crear_fila_historial(
-                paso=historial_paso,
-                estado_actual=q_actual,
-                simbolo=simbolo,
-                transicion="No válida",
-                nuevo_estado=q_actual,
-                explicacion=(
-                    explicacion
-                    if explicacion is not None
-                    else explicacion_evento(simbolo, valido=False)
-                ),
+            crear_item_historial(
+                historial_paso,
+                q,
+                simbolo,
+                "No válida",
+                q,
+                explicacion,
                 valida=False,
             )
         )
+        txt_formula.value = f"{q} + {simbolo} → {q}  ·  transición no válida"
         page.update()
 
     cargar_estado_inicial_historial()
 
-    # ======================================================================
-    # 6. AFD VISUAL COMPACTO
-    # ======================================================================
-    nodos_afd = []
-    flujo_afd = ft.Row(
-        wrap=True,
-        spacing=7,
-        run_spacing=9,
-        vertical_alignment=ft.CrossAxisAlignment.CENTER,
-    )
+    # ==================================================================
+    # 6. AFD VISUAL - DIAGRAMA SERPENTEANTE
+    # ==================================================================
+    nodo_refs = []
+    conector_refs = {}
 
-    for i, estado in enumerate(estados_afd):
+    def crear_nodo(idx):
+        estado = estados_afd[idx]
         q = codigo_estado(estado)
         nombre = nombre_estado(estado)
 
-        nodo = ft.Container(
-            padding=ft.Padding(left=12, top=8, right=12, bottom=8),
-            border_radius=12,
-            bgcolor="#EDF2F7",
+        texto_q = ft.Text(q, size=14, weight=ft.FontWeight.BOLD, color=AZUL_950)
+        circulo_interno = ft.Container(
+            width=58,
+            height=58,
+            border_radius=999,
+            bgcolor=SUPERFICIE,
+            alignment=ft.Alignment(0, 0),
+            content=texto_q,
+        )
+        circulo_externo = ft.Container(
+            width=68,
+            height=68,
+            border_radius=999,
+            bgcolor="#D9E2EC" if idx != len(estados_afd) - 1 else AZUL_200,
+            padding=5 if idx != len(estados_afd) - 1 else 4,
+            alignment=ft.Alignment(0, 0),
+            content=circulo_interno,
+        )
+        animar(circulo_externo, "animate_scale", 180)
+
+        nombre_txt = ft.Text(
+            nombre,
+            size=9,
+            color=TEXTO_SUAVE,
+            text_align=ft.TextAlign.CENTER,
+            max_lines=2,
+        )
+
+        loop = None
+        if idx == 2:
+            loop = chip("↻ RP", AMBAR_700, AMBAR_50)
+
+        elementos = []
+        if loop is not None:
+            elementos.append(loop)
+        elementos.extend([circulo_externo, nombre_txt])
+
+        control = ft.Container(
+            width=96,
             content=ft.Column(
-                [
-                    ft.Text(q, size=11, weight=ft.FontWeight.BOLD, color=TEXTO),
-                    ft.Text(nombre, size=9, color=TEXTO_SUAVE, max_lines=2),
-                ],
-                spacing=1,
-                tight=True,
+                elementos,
+                spacing=5,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
         )
-        nodos_afd.append(nodo)
-        flujo_afd.controls.append(nodo)
+        nodo_refs.append(
+            {
+                "outer": circulo_externo,
+                "inner": circulo_interno,
+                "q": texto_q,
+                "name": nombre_txt,
+            }
+        )
+        return control
 
-        if i < len(estados_afd) - 1:
-            flujo_afd.controls.append(
-                ft.Icon(ft.Icons.ARROW_FORWARD, size=15, color="#8CA0B5")
-            )
+    def crear_conector(simbolo, direccion="right"):
+        color = "#91A2B4"
+        icono = ft.Icons.ARROW_FORWARD if direccion == "right" else ft.Icons.ARROW_BACK
+        evento_chip = chip(simbolo, AZUL_800, AZUL_50)
+        flecha = ft.Icon(icono, size=20, color=color)
+        caja = ft.Container(
+            width=62,
+            content=ft.Column(
+                [evento_chip, flecha],
+                spacing=2,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+        )
+        conector_refs[simbolo] = {"box": caja, "chip": evento_chip, "arrow": flecha}
+        return caja
 
-    def actualizar_interfaz_afd(ultimo_evento=None):
-        estado_actual = estados_afd[automata.estado_actual_idx]
+    def crear_conector_vertical(simbolo):
+        evento_chip = chip(simbolo, AZUL_800, AZUL_50)
+        flecha = ft.Icon(ft.Icons.ARROW_DOWNWARD, size=20, color="#91A2B4")
+        caja = ft.Container(
+            width=90,
+            content=ft.Column(
+                [evento_chip, flecha],
+                spacing=2,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+        )
+        conector_refs[simbolo] = {"box": caja, "chip": evento_chip, "arrow": flecha}
+        return caja
 
-        txt_codigo_estado.value = codigo_estado(estado_actual)
-        txt_estado_actual.value = nombre_estado(estado_actual)
+    n0, n1, n2, n3, n4, n5 = [crear_nodo(i) for i in range(6)]
+    c_vm = crear_conector("VM", "right")
+    c_rp = crear_conector("RP", "right")
+    c_fr = crear_conector_vertical("FR")
+    c_pg = crear_conector("PG", "left")
+    c_ap = crear_conector("AP", "left")
+
+    fila_superior = ft.Row(
+        [n0, c_vm, n1, c_rp, n2],
+        spacing=2,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+    fila_intermedia = ft.Row(
+        [ft.Container(width=350), c_fr],
+        spacing=0,
+    )
+    fila_inferior = ft.Row(
+        [n5, c_ap, n4, c_pg, n3],
+        spacing=2,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
+    diagrama_contenido = ft.Container(
+        width=590,
+        padding=ft.Padding(left=8, top=8, right=8, bottom=8),
+        content=ft.Column(
+            [fila_superior, fila_intermedia, fila_inferior],
+            spacing=1,
+        ),
+    )
+
+    diagrama_scroll = ft.Row(
+        [diagrama_contenido],
+        scroll=ft.ScrollMode.AUTO,
+        spacing=0,
+    )
+
+    async def pulso_nodo(idx):
+        try:
+            ref = nodo_refs[idx]["outer"]
+            ref.scale = 1.10
+            ref.update()
+            await asyncio.sleep(0.16)
+            ref.scale = 1.0
+            ref.update()
+        except Exception:
+            pass
+
+    def actualizar_interfaz_afd(ultimo_evento=None, transicion=None):
+        estado = estados_afd[automata.estado_actual_idx]
+        q = codigo_estado(estado)
+        txt_codigo_estado.value = q
+        txt_estado_actual.value = nombre_estado(estado)
+
+        if transicion is not None:
+            q1, s, q2 = transicion
+            txt_formula.value = f"δ({q1}, {s}) = {q2}"
+
+        for i, ref in enumerate(nodo_refs):
+            activo = i == automata.estado_actual_idx
+            final = i == len(estados_afd) - 1
+            if activo:
+                ref["outer"].bgcolor = AZUL_200
+                ref["outer"].shadow = sombra(18, "#9CC8F6", 1)
+                ref["inner"].bgcolor = AZUL_700
+                ref["q"].color = ft.Colors.WHITE
+                ref["name"].color = AZUL_900
+                ref["name"].weight = ft.FontWeight.BOLD
+            else:
+                ref["outer"].bgcolor = AZUL_200 if final else "#D9E2EC"
+                ref["outer"].shadow = None
+                ref["inner"].bgcolor = SUPERFICIE
+                ref["q"].color = AZUL_950
+                ref["name"].color = TEXTO_SUAVE
+                ref["name"].weight = ft.FontWeight.NORMAL
+
+        # Normalizar conectores
+        for s, ref in conector_refs.items():
+            try:
+                ref["arrow"].color = "#91A2B4"
+                ref["chip"].bgcolor = AZUL_50
+                ref["chip"].content.controls[-1].color = AZUL_800
+            except Exception:
+                pass
 
         if ultimo_evento:
-            txt_ultimo_evento.value = ultimo_evento
+            s = simbolo_de_evento(ultimo_evento)
+            if s in conector_refs:
+                try:
+                    ref = conector_refs[s]
+                    ref["arrow"].color = VERDE_600
+                    ref["chip"].bgcolor = VERDE_50
+                    ref["chip"].content.controls[-1].color = VERDE_700
+                except Exception:
+                    pass
 
-        for i, nodo in enumerate(nodos_afd):
-            if i == automata.estado_actual_idx:
-                nodo.bgcolor = AZUL_700
-                nodo.shadow = ft.BoxShadow(blur_radius=12, color="#BDD5F2")
-                nodo.content.controls[0].color = ft.Colors.WHITE
-                nodo.content.controls[1].color = ft.Colors.WHITE
-            else:
-                nodo.bgcolor = "#EDF2F7"
-                nodo.shadow = None
-                nodo.content.controls[0].color = TEXTO
-                nodo.content.controls[1].color = TEXTO_SUAVE
-
+        lanzar_tarea(pulso_nodo, automata.estado_actual_idx)
         page.update()
 
     def intentar_transicion(evento, indice_destino, condicion_valida=True):
-        resultado = automata.intentar_transicion(
-            evento,
-            indice_destino,
-            condicion_valida,
-        )
-
+        resultado = automata.intentar_transicion(evento, indice_destino, condicion_valida)
         if resultado["valida"]:
             registrar_historial(
                 resultado["evento"],
                 resultado["estado_anterior"],
                 resultado["estado_nuevo"],
             )
-            actualizar_interfaz_afd(resultado["evento"])
+            q1 = codigo_estado(resultado["estado_anterior"])
+            q2 = codigo_estado(resultado["estado_nuevo"])
+            s = simbolo_de_evento(resultado["evento"])
+            actualizar_interfaz_afd(resultado["evento"], (q1, s, q2))
         else:
-            registrar_intento_invalido(
-                simbolo_de_evento(evento),
-                resultado["mensaje"],
-            )
+            s = simbolo_de_evento(evento)
+            registrar_invalida(s, resultado["mensaje"])
             mostrar_alerta(resultado["mensaje"])
 
-    # ======================================================================
-    # 7. MEMBRESÍA - MISMA LÓGICA
-    # ======================================================================
-    campo_membresia_dialogo = ft.TextField(
+    # ==================================================================
+    # 7. MEMBRESÍA
+    # ==================================================================
+    campo_membresia = ft.TextField(
         label="Código de membresía",
-        hint_text="Ej: PSABC123",
-        width=300,
+        hint_text="PSABC123",
+        width=320,
         max_length=8,
         text_align=ft.TextAlign.CENTER,
         capitalization=ft.TextCapitalization.CHARACTERS,
         autofocus=True,
     )
+    error_membresia = ft.Text("", color=ROJO_600, size=11)
 
-    texto_error_membresia = ft.Text("", color=ROJO_600, size=12)
-
-    def cerrar_dialogo_membresia():
+    def cerrar_membresia(_=None):
         dialogo_membresia.open = False
         page.update()
 
     def confirmar_membresia(_):
-        codigo = (campo_membresia_dialogo.value or "").strip().upper()
-
+        codigo = (campo_membresia.value or "").strip().upper()
         if not sistema.validar_membresia(codigo):
-            texto_error_membresia.value = (
-                "Membresía incorrecta. Formato: PS + 3 letras + 3 números. "
-                "Intenta nuevamente."
-            )
-            campo_membresia_dialogo.value = ""
+            error_membresia.value = "Formato inválido. Usa PS + 3 letras + 3 números."
+            campo_membresia.value = ""
             page.update()
             return
-
-        cerrar_dialogo_membresia()
+        cerrar_membresia()
+        txt_membresia.value = "Validada"
         intentar_transicion(f"Validar Membresía ({codigo})", 1)
 
     dialogo_membresia = ft.AlertDialog(
         modal=True,
-        title=ft.Text("Validar Membresía"),
+        title=ft.Row(
+            [
+                ft.Container(
+                    width=38,
+                    height=38,
+                    border_radius=12,
+                    bgcolor=AZUL_50,
+                    alignment=ft.Alignment(0, 0),
+                    content=ft.Icon(ft.Icons.PERSON_OUTLINE, color=AZUL_700),
+                ),
+                ft.Column(
+                    [
+                        ft.Text("Validar membresía", weight=ft.FontWeight.BOLD, color=AZUL_950),
+                        ft.Text("Identifica al cliente antes de registrar productos.", size=10, color=TEXTO_SUAVE),
+                    ],
+                    spacing=1,
+                ),
+            ],
+            spacing=10,
+        ),
         content=ft.Column(
             [
-                ft.Text("Ingresa tu código de membresía para continuar."),
-                campo_membresia_dialogo,
-                texto_error_membresia,
+                ft.Container(
+                    bgcolor=AZUL_50,
+                    border_radius=14,
+                    padding=14,
+                    content=ft.Text(
+                        "Código de prueba esperado: PS + 3 letras + 3 números.",
+                        size=11,
+                        color=AZUL_900,
+                    ),
+                ),
+                campo_membresia,
+                error_membresia,
             ],
-            tight=True,
             spacing=12,
+            tight=True,
         ),
         actions=[
-            ft.Button("Cancelar", on_click=lambda _: cerrar_dialogo_membresia()),
+            ft.Button("Cancelar", on_click=cerrar_membresia),
             ft.Button("Validar", on_click=confirmar_membresia),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
@@ -576,213 +662,302 @@ def construir_interfaz(page: ft.Page, automata, sistema):
 
     def btn_validar_membresia(_):
         if automata.estado_actual_idx != 0:
-            registrar_intento_invalido(
-                "VM",
-                "La membresía ya fue validada o el proceso ya inició.",
-            )
+            registrar_invalida("VM", "La membresía ya fue validada o el proceso ya inició.")
             mostrar_alerta("La membresía ya fue validada o el proceso ya inició.")
             return
-
-        campo_membresia_dialogo.value = ""
-        texto_error_membresia.value = ""
+        campo_membresia.value = ""
+        error_membresia.value = ""
         dialogo_membresia.open = True
         page.update()
 
-    # ======================================================================
-    # 8. PRODUCTOS / CARRITO - MISMA LÓGICA
-    # ======================================================================
-    def btn_agregar_producto(e):
-        if automata.estado_actual_idx in [1, 2]:
-            producto = e.control.data
-            sistema.agregar_producto(producto)
-            txt_total.value = f"Q{sistema.total_compra:.2f}"
-            intentar_transicion("Registrar Producto (r)", 2)
-        else:
-            registrar_intento_invalido(
-                "RP",
-                "No se puede registrar un producto antes de validar la membresía.",
-            )
-            mostrar_alerta("Debes validar tu membresía antes de registrar productos.")
+    # ==================================================================
+    # 8. CARRITO / PRODUCTOS
+    # ==================================================================
+    dialogo_carrito = ft.AlertDialog(
+        modal=True,
+        content=ft.Text(""),
+    )
+    page.overlay.append(dialogo_carrito)
 
-    def cerrar_dialogo_resumen(_):
-        dialogo_resumen.open = False
+    def cerrar_carrito(_=None):
+        dialogo_carrito.open = False
         page.update()
 
     def confirmar_finalizar_registro(_):
-        dialogo_resumen.open = False
+        dialogo_carrito.open = False
         page.update()
         intentar_transicion("Finalizar Registro (f)", 3)
 
-    dialogo_resumen = ft.AlertDialog(
-        modal=True,
-        title=ft.Text("Resumen de tu carrito"),
-        actions=[
-            ft.Button("Quiero agregar más", on_click=cerrar_dialogo_resumen),
-            ft.Button("Confirmar y Finalizar", on_click=confirmar_finalizar_registro),
-        ],
-        actions_alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-    )
-    page.overlay.append(dialogo_resumen)
-
-    def abrir_dialogo_resumen():
-        lista_visual = ft.ListView(height=160, spacing=7)
-
-        for p in sistema.productos_agregados:
-            lista_visual.controls.append(
-                ft.Row(
-                    [
-                        ft.Text(p["nombre"], expand=True),
-                        ft.Text(f"Q{p['precio']:.2f}"),
-                    ]
+    def abrir_carrito(_=None):
+        items = ft.ListView(height=220, spacing=8)
+        if not sistema.productos_agregados:
+            items.controls.append(
+                ft.Container(
+                    height=130,
+                    alignment=ft.Alignment(0, 0),
+                    content=ft.Column(
+                        [
+                            ft.Icon(ft.Icons.SHOPPING_CART_OUTLINED, size=34, color="#A9B7C7"),
+                            ft.Text("Tu carrito está vacío", weight=ft.FontWeight.BOLD, color=TEXTO_2),
+                            ft.Text("Agrega productos para continuar.", size=10, color=TEXTO_SUAVE),
+                        ],
+                        spacing=5,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
                 )
             )
-
-        contenido = ft.Column(
-            [
-                ft.Text("Revisa tus productos antes de finalizar:", italic=True),
-                ft.Container(
-                    content=lista_visual,
-                    bgcolor="#F7F9FC",
-                    padding=12,
-                    border_radius=12,
-                ),
-                ft.Divider(),
-                ft.Row(
-                    [
-                        ft.Text("Subtotal:", weight=ft.FontWeight.BOLD),
-                        ft.Text(f"Q{sistema.total_compra:.2f}"),
-                    ],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                ),
-                ft.Row(
-                    [
-                        ft.Text("Total:", weight=ft.FontWeight.BOLD, size=18),
-                        ft.Text(
-                            f"Q{sistema.total_compra:.2f}",
-                            size=18,
-                            weight=ft.FontWeight.BOLD,
-                            color=AZUL_900,
+        else:
+            for p in sistema.productos_agregados:
+                items.controls.append(
+                    ft.Container(
+                        bgcolor=SUPERFICIE_2,
+                        border_radius=12,
+                        padding=10,
+                        content=ft.Row(
+                            [
+                                ft.Container(
+                                    width=42,
+                                    height=42,
+                                    border_radius=10,
+                                    bgcolor=SUPERFICIE,
+                                    alignment=ft.Alignment(0, 0),
+                                    content=(
+                                        ft.Image(src=p["imagen"], fit=ft.BoxFit.CONTAIN)
+                                        if p.get("imagen")
+                                        else ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, color="#A9B7C7")
+                                    ),
+                                ),
+                                ft.Column(
+                                    [
+                                        ft.Text(p["nombre"], size=11, weight=ft.FontWeight.BOLD, color=TEXTO, max_lines=1),
+                                        ft.Text(p["categoria"], size=9, color=TEXTO_SUAVE),
+                                    ],
+                                    spacing=1,
+                                    expand=True,
+                                ),
+                                ft.Text(f"Q{p['precio']:.2f}", weight=ft.FontWeight.BOLD, color=AZUL_900),
+                            ],
+                            spacing=10,
                         ),
+                    )
+                )
+
+        acciones = [ft.Button("Seguir comprando", on_click=cerrar_carrito)]
+        if sistema.productos_agregados and automata.estado_actual_idx == 2:
+            acciones.append(ft.Button("Finalizar registro", on_click=confirmar_finalizar_registro))
+
+        dialogo_carrito.title = ft.Row(
+            [
+                ft.Icon(ft.Icons.SHOPPING_CART_OUTLINED, color=AZUL_700),
+                ft.Text("Tu carrito", weight=ft.FontWeight.BOLD, color=AZUL_950),
+                chip(str(len(sistema.productos_agregados)), AZUL_800, AZUL_50),
+            ],
+            spacing=8,
+        )
+        dialogo_carrito.content = ft.Column(
+            [
+                items,
+                ft.Divider(color=BORDE),
+                ft.Row(
+                    [
+                        ft.Text("TOTAL", size=10, weight=ft.FontWeight.BOLD, color=TEXTO_SUAVE),
+                        ft.Text(f"Q{sistema.total_compra:.2f}", size=20, weight=ft.FontWeight.BOLD, color=AZUL_950),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                ),
-                ft.Text(
-                    "¿Estás seguro de que no quieres agregar algún otro producto?",
-                    size=11,
-                    color=TEXTO_SUAVE,
                 ),
             ],
+            width=420,
             tight=True,
-            width=360,
             spacing=10,
         )
-
-        dialogo_resumen.content = contenido
-        dialogo_resumen.open = True
+        dialogo_carrito.actions = acciones
+        dialogo_carrito.actions_alignment = ft.MainAxisAlignment.END
+        dialogo_carrito.open = True
         page.update()
 
-    def btn_finalizar_registro(_):
-        if automata.estado_actual_idx == 2:
-            if not sistema.productos_agregados:
-                mostrar_alerta("No has agregado ningún producto.")
-                return
-            abrir_dialogo_resumen()
-        elif automata.estado_actual_idx > 2:
-            registrar_intento_invalido("FR", "El registro de productos ya fue finalizado.")
-            mostrar_alerta("El registro ya fue finalizado.")
-        else:
-            registrar_intento_invalido(
-                "FR",
-                "No se puede finalizar el registro antes de agregar productos.",
-            )
-            mostrar_alerta("Debes agregar productos primero.")
+    async def pulso_producto(card, indicador):
+        try:
+            indicador.visible = True
+            card.scale = 1.025
+            card.shadow = sombra(20, "#BFEAD8", 1)
+            card.update()
+            await asyncio.sleep(0.20)
+            card.scale = 1.0
+            card.update()
+            await asyncio.sleep(0.65)
+            indicador.visible = False
+            card.shadow = sombra(12, "#E1E9F2")
+            card.update()
+        except Exception:
+            pass
 
-    # ======================================================================
-    # 9. PAGO - MISMA LÓGICA
-    # ======================================================================
-    campo_nombre = ft.TextField(label="Nombre Completo", width=320, autofocus=True)
-    campo_nit = ft.TextField(label="NIT / DPI", width=320)
+    def agregar_producto(e):
+        if automata.estado_actual_idx not in [1, 2]:
+            registrar_invalida("RP", "No se puede registrar un producto antes de validar la membresía.")
+            mostrar_alerta("Debes validar tu membresía antes de registrar productos.")
+            return
+
+        info = e.control.data
+        producto = info["producto"]
+        sistema.agregar_producto(producto)
+        txt_total.value = f"Q{sistema.total_compra:.2f}"
+        txt_carrito.value = str(len(sistema.productos_agregados))
+        intentar_transicion("Registrar Producto (r)", 2)
+        lanzar_tarea(pulso_producto, info["card"], info["indicador"])
+
+    # ==================================================================
+    # 9. PAGO / CHECKOUT
+    # ==================================================================
+    campo_nombre = ft.TextField(label="Nombre completo", width=330, autofocus=True)
+    campo_nit = ft.TextField(label="NIT / DPI", width=330)
     campo_tarjeta = ft.TextField(
-        label="Número de Tarjeta",
+        label="Número de tarjeta",
         hint_text="16 dígitos",
-        width=320,
+        width=330,
         max_length=16,
         keyboard_type=ft.KeyboardType.NUMBER,
     )
-    campo_fecha = ft.TextField(
-        label="Vencimiento",
-        hint_text="MM/YY",
-        width=150,
-        max_length=5,
-    )
+    campo_fecha = ft.TextField(label="Vencimiento", hint_text="MM/YY", width=155, max_length=5)
     campo_cvv = ft.TextField(
         label="CVV",
-        width=150,
+        width=155,
         max_length=4,
         password=True,
         can_reveal_password=True,
         keyboard_type=ft.KeyboardType.NUMBER,
     )
-    texto_error_pago = ft.Text("", color=ROJO_600, size=12)
+    error_pago = ft.Text("", color=ROJO_600, size=11)
 
-    def cerrar_dialogo_pago():
+    dialogo_exito = ft.AlertDialog(
+        modal=True,
+        content=ft.Text(""),
+    )
+    page.overlay.append(dialogo_exito)
+
+    def cerrar_exito(_=None):
+        dialogo_exito.open = False
+        page.update()
+
+    def mostrar_exito():
+        dialogo_exito.title = None
+        dialogo_exito.content = ft.Container(
+            width=390,
+            padding=10,
+            content=ft.Column(
+                [
+                    ft.Container(
+                        width=74,
+                        height=74,
+                        border_radius=999,
+                        bgcolor=VERDE_50,
+                        alignment=ft.Alignment(0, 0),
+                        content=ft.Icon(ft.Icons.CHECK_CIRCLE, size=42, color=VERDE_600),
+                    ),
+                    ft.Text("¡Compra completada!", size=23, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                    ft.Text(
+                        "El pago fue procesado y el AFD llegó a su estado final.",
+                        size=11,
+                        color=TEXTO_SUAVE,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
+                    ft.Container(
+                        bgcolor=SUPERFICIE_2,
+                        border_radius=16,
+                        padding=16,
+                        content=ft.Row(
+                            [
+                                ft.Column(
+                                    [
+                                        ft.Text("TOTAL", size=9, color=TEXTO_SUAVE),
+                                        ft.Text(f"Q{sistema.total_compra:.2f}", size=19, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                                    ],
+                                    spacing=1,
+                                ),
+                                ft.Column(
+                                    [
+                                        ft.Text("ESTADO", size=9, color=TEXTO_SUAVE),
+                                        ft.Text("q5 · Finalizada", size=12, weight=ft.FontWeight.BOLD, color=VERDE_700),
+                                    ],
+                                    spacing=1,
+                                ),
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                    ),
+                ],
+                spacing=14,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+        )
+        dialogo_exito.actions = [ft.Button("Cerrar", on_click=cerrar_exito)]
+        dialogo_exito.actions_alignment = ft.MainAxisAlignment.CENTER
+        dialogo_exito.open = True
+        page.update()
+
+    def cerrar_pago(_=None):
         dialogo_pago.open = False
         page.update()
 
     def procesar_pago(_):
-        tarjeta = (campo_tarjeta.value or "").strip()
-        fecha = (campo_fecha.value or "").strip()
-        cvv = (campo_cvv.value or "").strip()
-
         valido, mensaje = sistema.validar_pago(
             campo_nombre.value,
             campo_nit.value,
-            tarjeta,
-            fecha,
-            cvv,
+            (campo_tarjeta.value or "").strip(),
+            (campo_fecha.value or "").strip(),
+            (campo_cvv.value or "").strip(),
         )
-
         if not valido:
-            texto_error_pago.value = mensaje
+            error_pago.value = mensaje
             page.update()
             return
 
-        texto_error_pago.value = ""
-        cerrar_dialogo_pago()
-
-        # MISMA LÓGICA DEL PROTOTIPO ACTUAL.
+        error_pago.value = ""
+        cerrar_pago()
+        # Se conserva exactamente la lógica del prototipo actual.
         intentar_transicion("Realizar Pago (p)", 4)
         intentar_transicion("Aprobar Pago (a)", 5)
-
-        mostrar_alerta(
-            "¡Pago aprobado! Compra finalizada exitosamente.",
-            color_fondo=VERDE_700,
-        )
+        mostrar_exito()
 
     dialogo_pago = ft.AlertDialog(
         modal=True,
-        title=ft.Text("Facturación y Pago Seguro"),
-        content=ft.Column(
+        title=ft.Row(
             [
-                ft.Text("Datos del Titular", weight=ft.FontWeight.BOLD),
-                campo_nombre,
-                campo_nit,
-                ft.Divider(),
-                ft.Text("Detalles de la Tarjeta", weight=ft.FontWeight.BOLD),
-                campo_tarjeta,
-                ft.Row(
-                    [campo_fecha, campo_cvv],
-                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    width=320,
+                ft.Container(
+                    width=40,
+                    height=40,
+                    border_radius=12,
+                    bgcolor=VERDE_50,
+                    alignment=ft.Alignment(0, 0),
+                    content=ft.Icon(ft.Icons.PAYMENTS_OUTLINED, color=VERDE_700),
                 ),
-                texto_error_pago,
+                ft.Column(
+                    [
+                        ft.Text("Facturación y pago", weight=ft.FontWeight.BOLD, color=AZUL_950),
+                        ft.Text("Datos ficticios para la simulación.", size=10, color=TEXTO_SUAVE),
+                    ],
+                    spacing=1,
+                ),
             ],
-            tight=True,
             spacing=10,
         ),
+        content=ft.Column(
+            [
+                ft.Text("Datos del titular", size=11, weight=ft.FontWeight.BOLD, color=TEXTO_2),
+                campo_nombre,
+                campo_nit,
+                ft.Divider(color=BORDE),
+                ft.Text("Tarjeta", size=11, weight=ft.FontWeight.BOLD, color=TEXTO_2),
+                campo_tarjeta,
+                ft.Row([campo_fecha, campo_cvv], spacing=12, wrap=True),
+                error_pago,
+            ],
+            spacing=10,
+            tight=True,
+        ),
         actions=[
-            ft.Button("Cancelar", on_click=lambda _: cerrar_dialogo_pago()),
-            ft.Button("Procesar Pago", on_click=procesar_pago),
+            ft.Button("Cancelar", on_click=cerrar_pago),
+            ft.Button("Procesar pago", on_click=procesar_pago),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
     )
@@ -790,110 +965,132 @@ def construir_interfaz(page: ft.Page, automata, sistema):
 
     def btn_pagar(_):
         if automata.estado_actual_idx == 3:
-            campo_nombre.value = ""
-            campo_nit.value = ""
-            campo_tarjeta.value = ""
-            campo_fecha.value = ""
-            campo_cvv.value = ""
-            texto_error_pago.value = ""
+            for c in [campo_nombre, campo_nit, campo_tarjeta, campo_fecha, campo_cvv]:
+                c.value = ""
+            error_pago.value = ""
             dialogo_pago.open = True
             page.update()
         elif automata.estado_actual_idx == 5:
-            registrar_intento_invalido(
-                "PG",
-                "La compra ya fue finalizada; no puede procesarse otro pago.",
-            )
+            registrar_invalida("PG", "La compra ya fue finalizada; no puede procesarse otro pago.")
             mostrar_alerta("Esta compra ya fue finalizada. Reinicia el sistema.")
         else:
-            registrar_intento_invalido(
-                "PG",
-                "No se puede realizar el pago antes de finalizar el registro.",
-            )
-            mostrar_alerta(
-                "Debes finalizar el registro (Paso 2) antes de proceder a pagar."
-            )
+            registrar_invalida("PG", "No se puede pagar antes de finalizar el registro de productos.")
+            mostrar_alerta("Debes finalizar el registro antes de proceder al pago.")
 
-    # ======================================================================
-    # 10. REINICIO - MISMA LÓGICA
-    # ======================================================================
+    # ==================================================================
+    # 10. FINALIZAR REGISTRO / REINICIO
+    # ==================================================================
+    def btn_finalizar_registro(_):
+        if automata.estado_actual_idx == 2:
+            if not sistema.productos_agregados:
+                mostrar_alerta("No has agregado ningún producto.")
+                return
+            abrir_carrito()
+        elif automata.estado_actual_idx > 2:
+            registrar_invalida("FR", "El registro de productos ya fue finalizado.")
+            mostrar_alerta("El registro ya fue finalizado.")
+        else:
+            registrar_invalida("FR", "Debes registrar al menos un producto antes de finalizar.")
+            mostrar_alerta("Debes agregar productos primero.")
+
     def btn_reiniciar(_):
         sistema.reiniciar()
         automata.reiniciar()
-
         txt_total.value = "Q0.00"
-        campo_membresia_dialogo.value = ""
-        texto_error_membresia.value = ""
-        txt_ultimo_evento.value = "Sistema reiniciado"
-
+        txt_carrito.value = "0"
+        txt_membresia.value = "Sin validar"
+        txt_formula.value = "Sistema reiniciado. El AFD volvió a q0."
+        campo_membresia.value = ""
+        error_membresia.value = ""
         cargar_estado_inicial_historial()
         actualizar_interfaz_afd()
 
-    # ======================================================================
-    # 11. CATÁLOGO RESPONSIVE - SIN ALTURAS RÍGIDAS DE GRID
-    # ======================================================================
-    columna_catalogo = ft.Column(spacing=28)
+    # ==================================================================
+    # 11. CATÁLOGO: BUSCADOR + CARDS
+    # ==================================================================
+    columna_catalogo = ft.Column(spacing=30)
+
+    campo_busqueda = ft.TextField(
+        hint_text="Buscar productos...",
+        prefix_icon=ft.Icons.SEARCH,
+        border_radius=14,
+        height=48,
+        value="",
+    )
+
+    dropdown_categoria = ft.Dropdown(
+        label="Categoría",
+        options=[ft.dropdown.Option(key=c, text=c) for c in categorias],
+        value="Todos",
+        width=230,
+    )
+
+    def hover_card(e, card):
+        try:
+            entrando = str(e.data).lower() == "true"
+            card.scale = 1.012 if entrando else 1.0
+            card.bgcolor = "#FFFFFF" if entrando else SUPERFICIE
+            card.shadow = sombra(20, "#CBD8E6", 1) if entrando else sombra(11, "#E1E9F2")
+            card.update()
+        except Exception:
+            pass
 
     def crear_tarjeta_producto(prod):
-        if prod.get("imagen"):
-            visual = ft.Image(
-                src=prod["imagen"],
-                height=118,
-                fit=ft.BoxFit.CONTAIN,
-            )
-        else:
-            visual = ft.Icon(
-                ft.Icons.IMAGE_NOT_SUPPORTED,
-                size=40,
-                color="#B9C6D4",
-            )
-
-        boton_agregar = crear_boton(
-            "Agregar",
-            AZUL_700,
-            icono=ft.Icons.ADD,
-            accion=btn_agregar_producto,
-            data=prod,
-            ancho=145,
+        visual = (
+            ft.Image(src=prod["imagen"], height=130, fit=ft.BoxFit.CONTAIN)
+            if prod.get("imagen")
+            else ft.Icon(ft.Icons.IMAGE_NOT_SUPPORTED, size=42, color="#A9B7C7")
         )
 
-        tarjeta = ft.Container(
+        indicador = ft.Container(
+            visible=False,
+            bgcolor=VERDE_50,
+            border_radius=999,
+            padding=ft.Padding(left=8, top=4, right=8, bottom=4),
+            content=ft.Row(
+                [
+                    ft.Icon(ft.Icons.CHECK_CIRCLE, size=12, color=VERDE_700),
+                    ft.Text("Agregado", size=9, weight=ft.FontWeight.BOLD, color=VERDE_700),
+                ],
+                spacing=4,
+                tight=True,
+            ),
+        )
+
+        btn = boton("Agregar", AZUL_700, agregar_producto, ft.Icons.ADD)
+
+        card = ft.Container(
             bgcolor=SUPERFICIE,
-            border_radius=18,
-            padding=18,
-            shadow=ft.BoxShadow(blur_radius=12, color="#E2EAF3"),
+            border_radius=20,
+            padding=16,
+            shadow=sombra(11, "#E1E9F2"),
             content=ft.Column(
                 [
-                    ft.Container(
-                        height=132,
-                        bgcolor="#F8FAFD",
-                        border_radius=14,
-                        alignment=ft.Alignment(0, 0),
-                        padding=10,
-                        content=visual,
+                    ft.Stack(
+                        [
+                            ft.Container(
+                                height=150,
+                                border_radius=16,
+                                bgcolor="#F7F9FC",
+                                alignment=ft.Alignment(0, 0),
+                                padding=12,
+                                content=visual,
+                            ),
+                            ft.Container(top=10, right=10, content=indicador),
+                        ]
                     ),
                     ft.Column(
                         [
-                            ft.Text(
-                                prod["nombre"],
-                                size=14,
-                                weight=ft.FontWeight.BOLD,
-                                color=TEXTO,
-                                max_lines=2,
-                            ),
-                            etiqueta(prod["categoria"], AZUL_800, AZUL_50),
+                            ft.Text(prod["nombre"], size=14, weight=ft.FontWeight.BOLD, color=TEXTO, max_lines=2),
+                            chip(prod["categoria"], AZUL_800, AZUL_50),
                         ],
                         spacing=7,
                         horizontal_alignment=ft.CrossAxisAlignment.START,
                     ),
                     ft.Row(
                         [
-                            ft.Text(
-                                f"Q{prod['precio']:.2f}",
-                                size=18,
-                                weight=ft.FontWeight.BOLD,
-                                color=AZUL_950,
-                            ),
-                            boton_agregar,
+                            ft.Text(f"Q{prod['precio']:.2f}", size=18, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                            btn,
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         vertical_alignment=ft.CrossAxisAlignment.CENTER,
@@ -902,52 +1099,52 @@ def construir_interfaz(page: ft.Page, automata, sistema):
                         run_spacing=8,
                     ),
                 ],
-                spacing=14,
+                spacing=13,
             ),
         )
+        animar(card, "animate_scale", 180)
+        try:
+            card.on_hover = lambda e, c=card: hover_card(e, c)
+        except Exception:
+            pass
+
+        btn.data = {"producto": prod, "card": card, "indicador": indicador}
 
         return ft.Container(
-            col={"xs": 12, "sm": 6, "md": 4, "xl": 3},
+            col={"xs": 12, "sm": 6, "lg": 4, "xl": 3},
             padding=6,
-            content=tarjeta,
+            content=card,
         )
 
-    def cargar_productos(categoria_filtro="Todos"):
+    def cargar_productos(_=None):
+        categoria = dropdown_categoria.value or "Todos"
+        busqueda = (campo_busqueda.value or "").strip().lower()
         columna_catalogo.controls.clear()
 
-        if categoria_filtro == "Todos":
-            categorias_presentes = [c for c in categorias if c != "Todos"]
-        else:
-            categorias_presentes = [categoria_filtro]
+        categorias_a_mostrar = [c for c in categorias if c != "Todos"] if categoria == "Todos" else [categoria]
+        cantidad_total = 0
 
-        for categoria in categorias_presentes:
-            productos_categoria = [
-                p for p in productos if p["categoria"] == categoria
+        for cat in categorias_a_mostrar:
+            lista = [
+                p for p in productos
+                if p["categoria"] == cat
+                and (not busqueda or busqueda in p["nombre"].lower())
             ]
-            if not productos_categoria:
+            if not lista:
                 continue
-
+            cantidad_total += len(lista)
             columna_catalogo.controls.append(
                 ft.Column(
                     [
                         ft.Row(
                             [
-                                ft.Text(
-                                    categoria,
-                                    size=19,
-                                    weight=ft.FontWeight.BOLD,
-                                    color=AZUL_950,
-                                ),
-                                etiqueta(
-                                    str(len(productos_categoria)),
-                                    AZUL_800,
-                                    AZUL_50,
-                                ),
+                                ft.Text(cat, size=18, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                                chip(str(len(lista)), AZUL_800, AZUL_50),
                             ],
                             spacing=8,
                         ),
                         ft.ResponsiveRow(
-                            [crear_tarjeta_producto(p) for p in productos_categoria],
+                            [crear_tarjeta_producto(p) for p in lista],
                             spacing=8,
                             run_spacing=8,
                         ),
@@ -956,394 +1153,367 @@ def construir_interfaz(page: ft.Page, automata, sistema):
                 )
             )
 
+        if cantidad_total == 0:
+            columna_catalogo.controls.append(
+                ft.Container(
+                    height=220,
+                    bgcolor=SUPERFICIE_2,
+                    border_radius=18,
+                    alignment=ft.Alignment(0, 0),
+                    content=ft.Column(
+                        [
+                            ft.Icon(ft.Icons.SEARCH, size=38, color="#A9B7C7"),
+                            ft.Text("No encontramos productos", weight=ft.FontWeight.BOLD, color=TEXTO_2),
+                            ft.Text("Prueba con otra búsqueda o categoría.", size=10, color=TEXTO_SUAVE),
+                        ],
+                        spacing=5,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                    ),
+                )
+            )
         page.update()
 
-    def cambiar_categoria(e):
-        cargar_productos(e.control.value)
+    campo_busqueda.on_change = cargar_productos
+    dropdown_categoria.on_change = cargar_productos
 
-    dropdown_categorias = ft.Dropdown(
-        label="Categoría",
-        options=[ft.dropdown.Option(key=cat, text=cat) for cat in categorias],
-        value="Todos",
-        width=280,
-    )
-    # Compatibilidad con la versión de Flet del proyecto.
-    dropdown_categorias.on_change = cambiar_categoria
+    # ==================================================================
+    # 12. CONTROLES ACADÉMICOS DEL PROCESO
+    # ==================================================================
+    b_membresia = boton("VM · Validar membresía", AZUL_700, btn_validar_membresia, ft.Icons.PERSON_OUTLINE)
+    b_finalizar = boton("FR · Finalizar registro", AMBAR_600, btn_finalizar_registro, ft.Icons.CHECK_CIRCLE_OUTLINE)
+    b_pagar = boton("PG · Pagar", VERDE_700, btn_pagar, ft.Icons.PAYMENTS_OUTLINED)
 
-    # ======================================================================
-    # 12. CONTROLES DEL PROCESO
-    # ======================================================================
-    boton_membresia = crear_boton(
-        "1. Validar Membresía",
-        AZUL_700,
-        icono=ft.Icons.PERSON_OUTLINE,
-        accion=btn_validar_membresia,
-        ancho=230,
-    )
-    boton_finalizar_reg = crear_boton(
-        "2. Finalizar Registro",
-        NARANJA_700,
-        icono=ft.Icons.CHECK_CIRCLE_OUTLINE,
-        accion=btn_finalizar_registro,
-        ancho=230,
-    )
-    boton_pagar = crear_boton(
-        "3. Pagar y Finalizar",
-        VERDE_700,
-        icono=ft.Icons.PAYMENTS_OUTLINED,
-        accion=btn_pagar,
-        ancho=230,
-    )
-    boton_reiniciar = crear_boton(
-        "Reiniciar",
-        ROJO_600,
-        icono=ft.Icons.REFRESH,
-        accion=btn_reiniciar,
-        ancho=145,
-    )
-
-    acciones_responsive = ft.ResponsiveRow(
-        [
-            ft.Container(
-                col={"xs": 12, "sm": 6, "lg": 4},
-                alignment=ft.Alignment(0, 0),
-                content=boton_membresia,
-            ),
-            ft.Container(
-                col={"xs": 12, "sm": 6, "lg": 4},
-                alignment=ft.Alignment(0, 0),
-                content=boton_finalizar_reg,
-            ),
-            ft.Container(
-                col={"xs": 12, "sm": 6, "lg": 4},
-                alignment=ft.Alignment(0, 0),
-                content=boton_pagar,
-            ),
-        ],
-        spacing=8,
-        run_spacing=10,
-    )
-
-    # ======================================================================
-    # 13. HEADER MODERNO - AÚN CON PLACEHOLDER DE LOGO
-    # ======================================================================
-    gradiente_header = crear_gradiente(["#FFFFFF", "#F5F9FF", "#EEF5FF"])
-
-    header_contenido = ft.ResponsiveRow(
-        [
-            ft.Container(
-                col={"xs": 12, "md": 7},
-                content=ft.Row(
+    barra_proceso = ft.Container(
+        bgcolor=SUPERFICIE_2,
+        border_radius=17,
+        padding=14,
+        content=ft.Column(
+            [
+                ft.Row(
                     [
-                        ft.Container(
-                            width=58,
-                            height=58,
-                            border_radius=16,
-                            bgcolor=AZUL_800,
-                            alignment=ft.Alignment(0, 0),
-                            content=ft.Text(
-                                "PS",
-                                size=20,
-                                weight=ft.FontWeight.BOLD,
-                                color=ft.Colors.WHITE,
-                            ),
-                        ),
-                        ft.Column(
-                            [
-                                ft.Text(
-                                    "PriceSmart",
-                                    size=27,
-                                    weight=ft.FontWeight.BOLD,
-                                    color=AZUL_950,
-                                ),
-                                ft.Text(
-                                    "Simulador de compra controlado mediante AFD",
-                                    size=11,
-                                    color=TEXTO_SUAVE,
-                                ),
-                            ],
-                            spacing=2,
-                        ),
+                        ft.Icon(ft.Icons.TUNE, size=17, color=AZUL_700),
+                        ft.Text("Eventos del AFD", size=13, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                        chip("Demostración", AZUL_800, AZUL_50),
                     ],
-                    spacing=14,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                ),
-            ),
-            ft.Container(
-                col={"xs": 12, "md": 5},
-                content=ft.Row(
-                    [
-                        ft.Container(
-                            padding=ft.Padding(left=16, top=8, right=16, bottom=8),
-                            border_radius=14,
-                            bgcolor="#F7FAFE",
-                            content=ft.Column(
-                                [
-                                    ft.Text("TOTAL ACTUAL", size=9, color=TEXTO_SUAVE),
-                                    txt_total,
-                                ],
-                                spacing=0,
-                            ),
-                        ),
-                        boton_reiniciar,
-                    ],
-                    alignment=ft.MainAxisAlignment.END,
-                    spacing=12,
+                    spacing=7,
                     wrap=True,
-                    run_spacing=10,
-                    vertical_alignment=ft.CrossAxisAlignment.CENTER,
                 ),
+                ft.Text(
+                    "Los botones se mantienen disponibles para poder demostrar también transiciones no válidas.",
+                    size=9,
+                    color=TEXTO_SUAVE,
+                ),
+                ft.ResponsiveRow(
+                    [
+                        ft.Container(col={"xs": 12, "sm": 6, "lg": 4}, content=b_membresia),
+                        ft.Container(col={"xs": 12, "sm": 6, "lg": 4}, content=b_finalizar),
+                        ft.Container(col={"xs": 12, "sm": 6, "lg": 4}, content=b_pagar),
+                    ],
+                    spacing=8,
+                    run_spacing=8,
+                ),
+            ],
+            spacing=9,
+        ),
+    )
+
+    # ==================================================================
+    # 13. HEADER - TIENDA ONLINE
+    # ==================================================================
+    boton_usuario = ft.Container(
+        width=46,
+        height=46,
+        border_radius=14,
+        bgcolor=AZUL_50,
+        alignment=ft.Alignment(0, 0),
+        content=ft.Icon(ft.Icons.PERSON_OUTLINE, color=AZUL_800),
+    )
+    boton_usuario.on_click = btn_validar_membresia
+
+    boton_carrito = ft.Container(
+        height=46,
+        border_radius=14,
+        bgcolor=AZUL_950,
+        padding=ft.Padding(left=13, top=0, right=13, bottom=0),
+        content=ft.Row(
+            [
+                ft.Icon(ft.Icons.SHOPPING_CART_OUTLINED, color=ft.Colors.WHITE, size=19),
+                ft.Container(
+                    width=22,
+                    height=22,
+                    border_radius=999,
+                    bgcolor=ROJO_600,
+                    alignment=ft.Alignment(0, 0),
+                    content=txt_carrito,
+                ),
+            ],
+            spacing=7,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+        ),
+    )
+    boton_carrito.on_click = abrir_carrito
+
+    boton_reset = ft.Container(
+        width=46,
+        height=46,
+        border_radius=14,
+        bgcolor=ROJO_50,
+        alignment=ft.Alignment(0, 0),
+        content=ft.Icon(ft.Icons.REFRESH, color=ROJO_600),
+    )
+    boton_reset.on_click = btn_reiniciar
+
+    marca = ft.Row(
+        [
+            ft.Container(
+                width=52,
+                height=52,
+                border_radius=15,
+                bgcolor=AZUL_800,
+                alignment=ft.Alignment(0, 0),
+                content=ft.Text("PS", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+            ),
+            ft.Column(
+                [
+                    ft.Text("PriceSmart", size=24, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                    ft.Text("Compra simulada · AFD en tiempo real", size=10, color=TEXTO_SUAVE),
+                ],
+                spacing=1,
             ),
         ],
         spacing=12,
-        run_spacing=16,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
     )
 
-    header_layers = [
-        crear_blob(AZUL_100, 230, 230, derecha=-70, arriba=-120),
-        crear_blob("#FFE6E7", 150, 150, derecha=140, abajo=-90),
-        ft.Container(
-            padding=ft.Padding(left=24, top=20, right=24, bottom=20),
-            content=header_contenido,
+    header_busqueda = ft.Container(
+        bgcolor="#FFFFFFCC",
+        border_radius=16,
+        padding=4,
+        content=campo_busqueda,
+    )
+
+    header_acciones = ft.Row(
+        [
+            ft.Column(
+                [
+                    ft.Text("TOTAL", size=8, weight=ft.FontWeight.BOLD, color=TEXTO_SUAVE),
+                    txt_total,
+                ],
+                spacing=0,
+                horizontal_alignment=ft.CrossAxisAlignment.END,
+            ),
+            ft.Column(
+                [
+                    boton_usuario,
+                    txt_membresia,
+                ],
+                spacing=2,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            ),
+            boton_carrito,
+            boton_reset,
+        ],
+        spacing=10,
+        wrap=True,
+        run_spacing=8,
+        alignment=ft.MainAxisAlignment.END,
+        vertical_alignment=ft.CrossAxisAlignment.CENTER,
+    )
+
+    header_row = ft.ResponsiveRow(
+        [
+            ft.Container(col={"xs": 12, "md": 3}, content=marca),
+            ft.Container(col={"xs": 12, "md": 5}, content=header_busqueda),
+            ft.Container(col={"xs": 12, "md": 4}, content=header_acciones),
+        ],
+        spacing=12,
+        run_spacing=14,
+    )
+
+    grad_header = gradiente(["#FFFFFF", "#F5F9FF", "#EEF5FF"])
+    header_kwargs = dict(
+        border_radius=24,
+        bgcolor=SUPERFICIE,
+        shadow=sombra(20, "#D7E2ED"),
+        clip_behavior=ft.ClipBehavior.HARD_EDGE,
+        content=ft.Stack(
+            [
+                blob(AZUL_100, 220, right=-70, top=-120, opacity=0.55),
+                blob(ROJO_100, 140, right=180, bottom=-90, opacity=0.35),
+                ft.Container(padding=ft.Padding(left=22, top=18, right=22, bottom=18), content=header_row),
+            ]
         ),
-    ]
-
-    header_kwargs = {
-        "border_radius": 22,
-        "bgcolor": SUPERFICIE,
-        "shadow": ft.BoxShadow(blur_radius=18, color="#DDE6F0"),
-        "clip_behavior": ft.ClipBehavior.HARD_EDGE,
-        "content": ft.Stack(header_layers),
-    }
-    if gradiente_header is not None:
-        header_kwargs["gradient"] = gradiente_header
-
+    )
+    if grad_header is not None:
+        header_kwargs["gradient"] = grad_header
     header = ft.Container(**header_kwargs)
 
-    # ======================================================================
-    # 14. PANEL DEL CATÁLOGO
-    # ======================================================================
+    # ==================================================================
+    # 14. PANEL CATÁLOGO
+    # ==================================================================
     cabecera_catalogo = ft.ResponsiveRow(
         [
             ft.Container(
                 col={"xs": 12, "md": 7},
                 content=ft.Column(
                     [
-                        ft.Text(
-                            "Productos",
-                            size=26,
-                            weight=ft.FontWeight.BOLD,
-                            color=AZUL_950,
-                        ),
-                        ft.Text(
-                            "Selecciona los productos que deseas registrar en la compra.",
-                            size=12,
-                            color=TEXTO_SUAVE,
-                        ),
+                        ft.Text("Productos", size=25, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                        ft.Text("Selecciona productos; cada clic genera el evento RP cuando corresponde.", size=11, color=TEXTO_SUAVE),
                     ],
-                    spacing=4,
+                    spacing=3,
                 ),
             ),
             ft.Container(
                 col={"xs": 12, "md": 5},
                 alignment=ft.Alignment(1, 0),
-                content=dropdown_categorias,
+                content=dropdown_categoria,
             ),
         ],
         spacing=10,
-        run_spacing=12,
+        run_spacing=10,
     )
 
-    bloque_acciones = ft.Container(
-        bgcolor="#F8FAFD",
-        border_radius=16,
-        padding=16,
-        content=ft.Column(
-            [
-                ft.Row(
-                    [
-                        ft.Icon(ft.Icons.TUNE, size=18, color=AZUL_700),
-                        ft.Text(
-                            "Acciones del proceso",
-                            size=14,
-                            weight=ft.FontWeight.BOLD,
-                            color=AZUL_950,
-                        ),
-                    ],
-                    spacing=8,
-                ),
-                ft.Text(
-                    "Ejecuta las acciones en orden para observar cómo responde el AFD.",
-                    size=10,
-                    color=TEXTO_SUAVE,
-                ),
-                acciones_responsive,
-            ],
-            spacing=12,
-        ),
-    )
-
-    panel_sistema_contenido = ft.Column(
-        [
-            cabecera_catalogo,
-            bloque_acciones,
-            ft.Container(height=2),
-            columna_catalogo,
-        ],
-        spacing=24,
-    )
-
-    panel_sistema_layers = [
-        crear_blob("#EAF3FF", 260, 260, izquierda=-150, arriba=40),
-        ft.Container(
-            padding=ft.Padding(left=22, top=24, right=22, bottom=28),
-            content=panel_sistema_contenido,
-        ),
-    ]
-
-    panel_sistema = ft.Container(
-        col={"xs": 12, "md": 7},
+    panel_catalogo = ft.Container(
+        col={"xs": 12, "md": 8},
         bgcolor="#FCFDFE",
-        border_radius=22,
-        shadow=ft.BoxShadow(blur_radius=18, color="#DFE7F0"),
+        border_radius=24,
+        shadow=sombra(18, "#DCE5EF"),
         clip_behavior=ft.ClipBehavior.HARD_EDGE,
-        content=ft.Stack(panel_sistema_layers),
+        content=ft.Stack(
+            [
+                blob("#EAF3FF", 270, left=-160, top=70, opacity=0.35),
+                ft.Container(
+                    padding=ft.Padding(left=22, top=22, right=22, bottom=28),
+                    content=ft.Column(
+                        [
+                            cabecera_catalogo,
+                            barra_proceso,
+                            columna_catalogo,
+                        ],
+                        spacing=24,
+                    ),
+                ),
+            ]
+        ),
     )
 
-    # ======================================================================
+    # ==================================================================
     # 15. PANEL AFD + HISTORIAL
-    # ======================================================================
-    gradiente_estado = crear_gradiente(["#E9F4FF", "#F6FAFF", "#EEF4FF"])
-
-    tarjeta_estado_kwargs = {
-        "border_radius": 16,
-        "padding": 16,
-        "bgcolor": AZUL_50,
-        "content": ft.Row(
+    # ==================================================================
+    tarjeta_estado = ft.Container(
+        border_radius=16,
+        padding=15,
+        bgcolor=AZUL_50,
+        content=ft.Row(
             [
-                badge_estado,
+                ft.Container(
+                    width=42,
+                    height=42,
+                    border_radius=999,
+                    bgcolor=AZUL_700,
+                    alignment=ft.Alignment(0, 0),
+                    content=txt_codigo_estado,
+                ),
                 ft.Column(
                     [
-                        ft.Text("Estado actual", size=10, color=TEXTO_SUAVE),
+                        ft.Text("ESTADO ACTUAL", size=8, weight=ft.FontWeight.BOLD, color=TEXTO_SUAVE),
                         txt_estado_actual,
-                        txt_ultimo_evento,
+                        txt_formula,
                     ],
-                    spacing=2,
+                    spacing=1,
                     expand=True,
                 ),
             ],
             spacing=12,
-            vertical_alignment=ft.CrossAxisAlignment.CENTER,
         ),
-    }
-    if gradiente_estado is not None:
-        tarjeta_estado_kwargs["gradient"] = gradiente_estado
+    )
 
-    tarjeta_estado_actual = ft.Container(**tarjeta_estado_kwargs)
-
-    afd_compacto = ft.Container(
+    afd_card = ft.Container(
         bgcolor=SUPERFICIE,
-        border_radius=18,
-        padding=18,
-        shadow=ft.BoxShadow(blur_radius=12, color="#E4EBF3"),
+        border_radius=20,
+        padding=17,
+        shadow=sombra(12, "#E2EAF2"),
         content=ft.Column(
             [
                 ft.Row(
                     [
                         ft.Column(
                             [
-                                ft.Text(
-                                    "AFD en tiempo real",
-                                    size=18,
-                                    weight=ft.FontWeight.BOLD,
-                                    color=AZUL_950,
-                                ),
-                                ft.Text(
-                                    "Vista compacta del estado activo",
-                                    size=10,
-                                    color=TEXTO_SUAVE,
-                                ),
+                                ft.Text("AFD en tiempo real", size=18, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                                ft.Text("Diagrama del flujo implementado", size=9, color=TEXTO_SUAVE),
                             ],
-                            spacing=2,
+                            spacing=1,
                         ),
-                        etiqueta("EN VIVO", VERDE_700, VERDE_50),
+                        chip("EN VIVO", VERDE_700, VERDE_50),
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-                    vertical_alignment=ft.CrossAxisAlignment.START,
                 ),
-                tarjeta_estado_actual,
+                tarjeta_estado,
                 ft.Container(
-                    bgcolor="#F8FAFD",
-                    border_radius=14,
-                    padding=12,
-                    content=flujo_afd,
+                    bgcolor=SUPERFICIE_2,
+                    border_radius=16,
+                    padding=10,
+                    content=diagrama_scroll,
+                ),
+                ft.Text(
+                    "↻ RP representa el registro repetido de productos mientras el AFD permanece en q2.",
+                    size=8,
+                    color=TEXTO_SUAVE,
                 ),
             ],
-            spacing=14,
+            spacing=13,
         ),
     )
 
-    historial_panel = ft.Container(
+    historial_card = ft.Container(
         bgcolor=SUPERFICIE,
-        border_radius=18,
-        padding=18,
-        shadow=ft.BoxShadow(blur_radius=12, color="#E4EBF3"),
+        border_radius=20,
+        padding=17,
+        shadow=sombra(12, "#E2EAF2"),
         content=ft.Column(
             [
-                ft.Column(
+                ft.Row(
                     [
-                        ft.Text(
-                            "Historial de transiciones",
-                            size=20,
-                            weight=ft.FontWeight.BOLD,
-                            color=AZUL_950,
+                        ft.Column(
+                            [
+                                ft.Text("Historial de transiciones", size=19, weight=ft.FontWeight.BOLD, color=AZUL_950),
+                                ft.Text("Cada evento muestra estado, símbolo y resultado.", size=9, color=TEXTO_SUAVE),
+                            ],
+                            spacing=1,
                         ),
-                        ft.Text(
-                            "Cada intento conserva estado, símbolo, transición y resultado.",
-                            size=10,
-                            color=TEXTO_SUAVE,
-                        ),
+                        ft.Icon(ft.Icons.HISTORY, color=AZUL_700),
                     ],
-                    spacing=3,
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                 ),
                 ft.Divider(height=1, color=BORDE),
                 lista_historial,
             ],
-            spacing=12,
+            spacing=11,
         ),
     )
 
-    panel_automata = ft.Container(
-        col={"xs": 12, "md": 5},
-        border_radius=22,
+    panel_afd = ft.Container(
+        col={"xs": 12, "md": 4},
         bgcolor="#F1F5FA",
-        padding=14,
-        shadow=ft.BoxShadow(blur_radius=18, color="#DFE7F0"),
-        content=ft.Column(
-            [afd_compacto, historial_panel],
-            spacing=14,
-        ),
+        border_radius=24,
+        padding=13,
+        shadow=sombra(18, "#DCE5EF"),
+        content=ft.Column([afd_card, historial_card], spacing=13),
     )
 
-    # ======================================================================
-    # 16. LAYOUT FINAL RESPONSIVE
-    # ======================================================================
-    contenido_principal = ft.ResponsiveRow(
-        [panel_sistema, panel_automata],
+    # ==================================================================
+    # 16. LAYOUT FINAL
+    # ==================================================================
+    contenido = ft.ResponsiveRow(
+        [panel_catalogo, panel_afd],
         spacing=18,
         run_spacing=18,
     )
 
     cuerpo = ft.Container(
-        padding=ft.Padding(left=20, top=18, right=20, bottom=28),
-        content=ft.Column(
-            [
-                header,
-                contenido_principal,
-                ft.Container(height=2),
-            ],
-            spacing=18,
-        ),
+        padding=ft.Padding(left=18, top=18, right=18, bottom=28),
+        content=ft.Column([header, contenido], spacing=18),
     )
 
     raiz = ft.Column(
@@ -1355,6 +1525,5 @@ def construir_interfaz(page: ft.Page, automata, sistema):
 
     page.add(raiz)
 
-    # Carga inicial
     cargar_productos()
     actualizar_interfaz_afd()
